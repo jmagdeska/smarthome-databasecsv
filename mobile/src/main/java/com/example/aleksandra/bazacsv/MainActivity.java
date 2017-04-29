@@ -225,7 +225,9 @@ public class MainActivity extends ListActivity implements GoogleApiClient.Connec
                     if(measurement.toLowerCase().equals("temperature")) measurementText = measurementRow[0];
                     else if(measurement.toLowerCase().equals("light")) measurementText = measurementRow[1];
                     else measurementText = measurementRow[2];
-                    sendAsyncMessage(START_ACTIVITY, measurementText);
+
+                    Toast.makeText(MainActivity.this, "message to send: " + measurementText, Toast.LENGTH_SHORT).show();
+                    sendAsyncMessage(WEAR_MESSAGE_PATH, measurementText);
                 }
             }
         });

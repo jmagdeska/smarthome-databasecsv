@@ -37,6 +37,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
     private static final String PATH_ACTION = "/action";
     private static final String WEAR_MESSAGE_PATH = "/wearMessage";
     private static final String START_PHONE_ACTIVITY = "/start_phone_activity";
+    private static final String PHONE_MESSAGE_PATH = "/pmessage";
     SharedPreferences sharedPrefs;
 
     private Button measureBtn;
@@ -60,7 +61,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
                 inputText = (EditText) findViewById(R.id.input_text);
                 measurement = inputText.getText().toString();
                 if(!measurement.isEmpty()) {
-                    sendMessage(START_PHONE_ACTIVITY, measurement);
+                    sendMessage(PHONE_MESSAGE_PATH, measurement);
                     Wearable.MessageApi.addListener(mApiClient, WearCommunication.this);
                 }
                 else Toast.makeText(WearCommunication.this,"Please enter a measurement!", Toast.LENGTH_SHORT).show();
@@ -136,7 +137,6 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
                 for(Node node : nodes.getNodes()) {
                     MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(
                             mApiClient, node.getId(), path, message.getBytes() ).await();
-                    System.out.println("rez " + result);
                 }
             }
         }).start();
@@ -160,6 +160,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
             public void run() {
                 if(messageEvent.getPath().equalsIgnoreCase(WEAR_MESSAGE_PATH) ) {
                     String measurementValue = messageEvent.getData().toString();
+                    System.out.println("Izmereno: "+ measurementValue);
                     SharedPreferences.Editor editor = sharedPrefs.edit();
 
                     Set<String> measurementSet = sharedPrefs.getStringSet(measurement, null);
@@ -167,8 +168,6 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
 
                     editor.putStringSet(measurement, measurementSet);
                     editor.commit();
-
-                    Log.d("Izmereno: ", measurementValue);
                 }
             }
         });
