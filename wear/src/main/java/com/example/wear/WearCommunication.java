@@ -136,6 +136,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
                 for(Node node : nodes.getNodes()) {
                     MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(
                             mApiClient, node.getId(), path, message.getBytes() ).await();
+                    System.out.println("rez " + result);
                 }
             }
         }).start();

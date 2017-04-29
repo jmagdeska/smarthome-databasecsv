@@ -4,6 +4,8 @@ package com.example.aleksandra.bazacsv;
  * Created by aleksandra on 26.04.2017.
  */
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.app.Dialog;
 import android.app.ListActivity;
@@ -19,6 +21,16 @@ import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.MessageEvent;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.Wearable;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -26,7 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 
-public class MainActivity extends ListActivity {
+public class MainActivity extends ListActivity implements GoogleApiClient.ConnectionCallbacks, MessageApi.MessageListener {
 
     TextView lbl;
     DBController controller = new DBController(this);
@@ -36,6 +48,11 @@ public class MainActivity extends ListActivity {
     ListAdapter adapter;
     ArrayList<HashMap<String, String>> myList;
     public static final int requestcode = 1;
+    private static final String START_ACTIVITY = "/start_activity";
+    private static final String WEAR_MESSAGE_PATH = "/message";
+    private static final String PHONE_MESSAGE_PATH = "/pmessage";
+    private GoogleApiClient mApiClient;
+    private String measurementText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +68,8 @@ public class MainActivity extends ListActivity {
             @Override
             public void onClick(View v) {
                 Intent fileintent = new Intent(Intent.ACTION_GET_CONTENT);
-                fileintent.setType("*/*");                try {
+                fileintent.setType("*/*");
+                try {
                     startActivityForResult(fileintent, requestcode);
                 } catch (ActivityNotFoundException e) {
                     lbl.setText("No activity can handle picking a file. Showing alternatives.");
@@ -68,6 +86,17 @@ public class MainActivity extends ListActivity {
             setListAdapter(adapter);
             lbl.setText("");
         }
+
+        initGoogleApiClient();
+    }
+
+    private void initGoogleApiClient() {
+        mApiClient = new GoogleApiClient.Builder( this )
+                .addApi( Wearable.API )
+                .addConnectionCallbacks( this )
+                .build();
+
+        mApiClient.connect();
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -83,7 +112,7 @@ public class MainActivity extends ListActivity {
                 try {
                     if (resultCode == RESULT_OK) {
                         try {
-                            System.out.println("FILE PAT " );
+                            System.out.println("FILE PAT ");
                             FileReader file = new FileReader(filepath);
 
                             BufferedReader buffer = new BufferedReader(file);
@@ -132,7 +161,7 @@ public class MainActivity extends ListActivity {
                     // db.endTransaction();
                 }
         }
-        myList= controller.getAllProducts();
+        myList = controller.getAllProducts();
 
         if (myList.size() != 0) {
             ListView lv = getListView();
@@ -145,5 +174,60 @@ public class MainActivity extends ListActivity {
         }
     }
 
+        @Override
+        protected void onDestroy() {
+            super.onDestroy();
+            if( mApiClient != null )
+                mApiClient.unregisterConnectionCallbacks( this );
+            mApiClient.disconnect();
+        }
 
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            Wearable.MessageApi.addListener( mApiClient, this );
+        }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    private void sendAsyncMessage(final String path, final String message) {
+
+        Wearable.NodeApi.getConnectedNodes( mApiClient ).setResultCallback(new ResultCallback<NodeApi.GetConnectedNodesResult>() {
+            @Override
+            public void onResult(@NonNull NodeApi.GetConnectedNodesResult nodes) {
+                for(Node node : nodes.getNodes()) {
+                    Wearable.MessageApi.sendMessage(
+                            mApiClient, node.getId(), path, message.getBytes() ).setResultCallback(new ResultCallback<MessageApi.SendMessageResult>() {
+                        @Override
+                        public void onResult(@NonNull MessageApi.SendMessageResult sendMessageResult) {
+                            if (sendMessageResult.getStatus().isSuccess()){
+                                Toast.makeText(getApplicationContext(), "message sent ", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+
+    @Override
+    public void onMessageReceived(final MessageEvent messageEvent) {
+        runOnUiThread( new Runnable() {
+            @Override
+            public void run() {
+                if( messageEvent.getPath().equalsIgnoreCase( PHONE_MESSAGE_PATH ) ) {
+                    String measurement = messageEvent.getData().toString();
+                    Toast.makeText(MainActivity.this, "message : " + measurement, Toast.LENGTH_SHORT).show();
+                    String [] measurementRow = controller.getRow(1).split(",");
+                    if(measurement.toLowerCase().equals("temperature")) measurementText = measurementRow[0];
+                    else if(measurement.toLowerCase().equals("light")) measurementText = measurementRow[1];
+                    else measurementText = measurementRow[2];
+                    sendAsyncMessage(START_ACTIVITY, measurementText);
+                }
+            }
+        });
+    }
 }
