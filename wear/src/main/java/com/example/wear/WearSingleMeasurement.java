@@ -3,10 +3,12 @@ package com.example.wear;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.wearable.activity.WearableActivity;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -20,7 +22,7 @@ public class WearSingleMeasurement extends WearableActivity {
     TextView measurementTextView;
     SharedPreferences sharedPrefs;
     private ArrayList<String> measurementList;
-    private ArrayList<Integer> mIcons;
+    String measurementName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,18 +31,26 @@ public class WearSingleMeasurement extends WearableActivity {
         measurementTextView = (TextView) findViewById(R.id.measurementTextView);
 
         Intent intent = getIntent();
-        String measurementName = intent.getStringExtra("measurementName");
-        measurementTextView.setText(measurementName);
+        measurementName = intent.getStringExtra("measurementName");
 
-        sharedPrefs =  getSharedPreferences("SharedPrefs", this.MODE_PRIVATE);
+        StringBuilder sb = new StringBuilder(measurementName);
+        sb.setCharAt(0, Character.toUpperCase(sb.charAt(0)));
+        measurementTextView.setText(sb.toString());
 
-        Set<String> measurementSet = sharedPrefs.getStringSet(measurementName, null);
+        populateListView();
+    }
 
-        measurementList = new ArrayList<String>(measurementSet);
+    public void populateListView(){
 
-        ListView listView = (ListView) findViewById(R.id.listView);
-        String[] listArray = (String[]) measurementList.toArray();
-        listView.setAdapter(new ArrayAdapter<String>(WearSingleMeasurement.this,
-                android.R.layout.simple_list_item_1, listArray));
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        if(sharedPrefs.getStringSet(measurementName.toLowerCase(), null) != null) {
+            Set<String> measurementSet = sharedPrefs.getStringSet(measurementName.toLowerCase(), null);
+            measurementList = new ArrayList<String>(measurementSet);
+            ListView listView = (ListView) findViewById(R.id.listView);
+            listView.setAdapter(new ArrayAdapter<String>(WearSingleMeasurement.this,
+                    R.layout.custom_list_item, measurementList));
+        }
+        else Toast.makeText(this, "No previous measurements available!", Toast.LENGTH_LONG).show();
     }
 }

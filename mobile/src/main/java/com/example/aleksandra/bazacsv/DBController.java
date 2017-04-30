@@ -68,6 +68,8 @@ public class DBController extends SQLiteOpenHelper {
             row = cursor.getString(1) + "," + cursor.getString(2) + "," + cursor.getString(3);
         }
 
+        cursor.close();
+
         return row;
     }
 

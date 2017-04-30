@@ -7,7 +7,7 @@
 
     <RelativeLayout
         android:id="@+id/frame_layout"
-        android:layout_width="234dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#232E33"
         app:layout_box="left|bottom|right">
@@ -16,20 +16,23 @@
             android:id="@+id/measurementTextView"
             android:layout_width="wrap_content"
             android:layout_height="60dp"
-            android:layout_alignParentTop="true"
-            android:layout_centerHorizontal="true"
             android:fontFamily="sans-serif-light"
             android:gravity="bottom"
             android:text="Measurement"
             android:textColor="#FFFFFF"
-            android:textSize="20sp" />
+            android:textSize="20sp"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true" />
 
         <ListView
+            android:id="@+id/listView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/listView"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
             android:layout_below="@+id/measurementTextView"
-            android:layout_alignEnd="@+id/measurementTextView" />
+            android:cacheColorHint="#FFFFFF"
+            android:paddingTop="10dp" />
 
 
     </RelativeLayout>

@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.aleksandra.bazacsv">
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <meta-data
+        android:name="com.google.android.speech.API_KEY"
+        android:value="AIzaSyCfH2DlQa4xtpgFSst3BwHjWfoQ1WJ3ye8"/>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

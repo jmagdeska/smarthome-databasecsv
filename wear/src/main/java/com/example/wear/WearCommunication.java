@@ -1,11 +1,15 @@
 package com.example.wear;
 
+import android.app.FragmentManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.speech.RecognizerIntent;
 import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.support.wearable.activity.WearableActivity;
+import android.support.wearable.view.DelayedConfirmationView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -20,9 +24,13 @@ import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -30,15 +38,15 @@ import java.util.Set;
  * Created by Jana on 4/26/2017.
  */
 
-public class WearCommunication extends WearableActivity implements GoogleApiClient.ConnectionCallbacks, MessageApi.MessageListener {
+public class WearCommunication extends WearableActivity implements GoogleApiClient.ConnectionCallbacks, MessageApi.MessageListener{
 
     private GoogleApiClient mApiClient;
     private static final int SPEECH_REQUEST_CODE = 0;
     private static final String PATH_ACTION = "/action";
-    private static final String WEAR_MESSAGE_PATH = "/wearMessage";
-    private static final String START_PHONE_ACTIVITY = "/start_phone_activity";
+    private static final String WEAR_MESSAGE_PATH = "/message";
     private static final String PHONE_MESSAGE_PATH = "/pmessage";
     SharedPreferences sharedPrefs;
+    Set<String> measurementSet;
 
     private Button measureBtn;
     private EditText inputText;
@@ -51,7 +59,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
 
         initGoogleApiClient();
 
-        sharedPrefs =  getSharedPreferences("SharedPrefs", this.MODE_PRIVATE);
+        sharedPrefs =  PreferenceManager.getDefaultSharedPreferences(this);
 
         setContentView(R.layout.wear_activity_communication);
         measureBtn = (Button) findViewById(R.id.measureBtn);
@@ -59,12 +67,12 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
             @Override
             public void onClick(View view) {
                 inputText = (EditText) findViewById(R.id.input_text);
-                measurement = inputText.getText().toString();
-                if(!measurement.isEmpty()) {
+                measurement = inputText.getText().toString().toLowerCase();
+                String [] measurements = {"temperature", "light", "humidity"};
+                if(!measurement.isEmpty() && Arrays.asList(measurements).contains(measurement)) {
                     sendMessage(PHONE_MESSAGE_PATH, measurement);
-                    Wearable.MessageApi.addListener(mApiClient, WearCommunication.this);
                 }
-                else Toast.makeText(WearCommunication.this,"Please enter a measurement!", Toast.LENGTH_SHORT).show();
+                else Toast.makeText(WearCommunication.this,"Please enter a valid measurement!", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -124,7 +132,6 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
                                 }
                             }
                     );
-            System.out.println("Tekst: " + spokenText);
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -136,7 +143,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
                 NodeApi.GetConnectedNodesResult nodes = Wearable.NodeApi.getConnectedNodes( mApiClient ).await();
                 for(Node node : nodes.getNodes()) {
                     MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(
-                            mApiClient, node.getId(), path, message.getBytes() ).await();
+                            mApiClient, node.getId(), path, message.getBytes()).await();
                 }
             }
         }).start();
@@ -145,8 +152,7 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         System.out.println("onConnected");
-//        displaySpeechRecognizer();
-    }
+        Wearable.MessageApi.addListener(mApiClient, WearCommunication.this);    }
 
     @Override
     public void onConnectionSuspended(int i) {
@@ -159,17 +165,37 @@ public class WearCommunication extends WearableActivity implements GoogleApiClie
             @Override
             public void run() {
                 if(messageEvent.getPath().equalsIgnoreCase(WEAR_MESSAGE_PATH) ) {
-                    String measurementValue = messageEvent.getData().toString();
-                    System.out.println("Izmereno: "+ measurementValue);
+                    String measurementValue = "";
+                    measurementValue = new String(messageEvent.getData());
                     SharedPreferences.Editor editor = sharedPrefs.edit();
 
-                    Set<String> measurementSet = sharedPrefs.getStringSet(measurement, null);
-                    measurementSet.add(DateFormat.getDateTimeInstance().format(new Date()) + " : " + measurementValue);
+                    if(sharedPrefs.getStringSet(measurement, null) != null) {
+                        measurementSet = sharedPrefs.getStringSet(measurement, null);
+                    }
+                    else measurementSet = new HashSet<String>();
+
+                    measurementSet.add("Date: " + DateFormat.getDateTimeInstance().format(new Date()) + "\n" +
+                                        "Value: " + measurementValue);
 
                     editor.putStringSet(measurement, measurementSet);
                     editor.commit();
+
+                    checkMeasurementValue(measurement, measurementValue);
+
+                    Intent intent = new Intent(getApplicationContext(), WearSingleMeasurement.class);
+                    intent.putExtra("measurementName", measurement);
+                    startActivity(intent);
                 }
             }
         });
+    }
+
+    public void checkMeasurementValue(String measurement, String measurementValue){
+        if( (measurement.equals("temperature") && Integer.valueOf(measurementValue) > 24) ||
+                (measurement.equals("light") && Integer.valueOf(measurementValue) > 1000) ||
+                (measurement.equals("humidity") && Integer.valueOf(measurementValue) > 52) ) {
+            System.out.println("aaa");
+            Toast.makeText(this, "Value exceeds recommended boundary!", Toast.LENGTH_SHORT).show();
+        }
     }
 }

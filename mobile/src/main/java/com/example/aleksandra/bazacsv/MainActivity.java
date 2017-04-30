@@ -34,8 +34,11 @@ import com.google.android.gms.wearable.Wearable;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 public class MainActivity extends ListActivity implements GoogleApiClient.ConnectionCallbacks, MessageApi.MessageListener {
@@ -48,9 +51,9 @@ public class MainActivity extends ListActivity implements GoogleApiClient.Connec
     ListAdapter adapter;
     ArrayList<HashMap<String, String>> myList;
     public static final int requestcode = 1;
-    private static final String START_ACTIVITY = "/start_activity";
     private static final String WEAR_MESSAGE_PATH = "/message";
     private static final String PHONE_MESSAGE_PATH = "/pmessage";
+    private static final String START_PHONE_ACTIVITY = "/start_phone_activity";
     private GoogleApiClient mApiClient;
     private String measurementText;
 
@@ -112,7 +115,6 @@ public class MainActivity extends ListActivity implements GoogleApiClient.Connec
                 try {
                     if (resultCode == RESULT_OK) {
                         try {
-                            System.out.println("FILE PAT ");
                             FileReader file = new FileReader(filepath);
 
                             BufferedReader buffer = new BufferedReader(file);
@@ -170,7 +172,6 @@ public class MainActivity extends ListActivity implements GoogleApiClient.Connec
                     R.id.Temperature, R.id.Light, R.id.Humidity});
             setListAdapter(adapter);
             lbl.setText("Data Imported");
-            System.out.println("Redica " + controller.getRow(1));
         }
     }
 
@@ -218,15 +219,28 @@ public class MainActivity extends ListActivity implements GoogleApiClient.Connec
         runOnUiThread( new Runnable() {
             @Override
             public void run() {
-                if( messageEvent.getPath().equalsIgnoreCase( PHONE_MESSAGE_PATH ) ) {
-                    String measurement = messageEvent.getData().toString();
+                if( messageEvent.getPath().equalsIgnoreCase(PHONE_MESSAGE_PATH)) {
+                    String measurement = null;
+                    try {
+                        measurement = new String(messageEvent.getData(), "UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                     Toast.makeText(MainActivity.this, "message : " + measurement, Toast.LENGTH_SHORT).show();
-                    String [] measurementRow = controller.getRow(1).split(",");
-                    if(measurement.toLowerCase().equals("temperature")) measurementText = measurementRow[0];
-                    else if(measurement.toLowerCase().equals("light")) measurementText = measurementRow[1];
-                    else measurementText = measurementRow[2];
+                    int pos = ThreadLocalRandom.current().nextInt(1, 55 + 1);
+                    String [] measurementRow = controller.getRow(pos).split(",");
 
-                    Toast.makeText(MainActivity.this, "message to send: " + measurementText, Toast.LENGTH_SHORT).show();
+                    switch (measurement) {
+                        case "temperature":
+                            measurementText = measurementRow[0];
+                            break;
+                        case "light":
+                            measurementText = measurementRow[1];
+                            break;
+                        case "humidity":
+                            measurementText = measurementRow[2];
+                            break;
+                    }
                     sendAsyncMessage(WEAR_MESSAGE_PATH, measurementText);
                 }
             }
